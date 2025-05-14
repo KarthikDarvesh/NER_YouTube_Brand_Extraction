@@ -1,0 +1,235 @@
+{
+  "name": "[NER_Worker] NER_Woker_NER_YT_Brand_Extraction",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "3cf3c3f2-0426-445e-aa2e-b79822964028",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -280,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process each item in the array\nreturn items.map(item => {\n    // Check if output exists and is a string\n    if (item.json.output && typeof item.json.output === 'string') {\n        // Remove newline characters, backticks, and trim whitespace\n        item.json.output = item.json.output.replace(/\\n/g, '').replace(/`/g, '').trim();\n        \n        // Escape single quotes by replacing them with two single quotes (for SQL compatibility)\n        item.json.output = item.json.output.replace(/'/g, \"''\");\n    }\n    // Return the modified item, keeping the original format\n    return item;\n});\n"
+      },
+      "id": "ab5fd0e5-6cdc-4714-8f55-89d856c44b7a",
+      "name": "Cleaned_the_output ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6dffa828-ce5f-447b-b9d0-3c4c83a7fd31",
+              "name": "video_id",
+              "value": "={{ $('Execute Workflow Trigger').first().json.video_id }}",
+              "type": "number"
+            },
+            {
+              "id": "72b8b453-a03f-4a46-81c2-6e73cc91ba2f",
+              "name": "yt_video_id",
+              "value": "={{ $('Execute Workflow Trigger').first().json.yt_video_id }}",
+              "type": "string"
+            },
+            {
+              "id": "2ddbc584-3bbc-4abe-8023-4e4c25ee1cff",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "adbdb45b-0eba-4df2-924a-f4c129a74cb0",
+      "name": "Video_id & yt_video_id & output [Merged]",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# **THIS FLOW GENERATE (BRAND EXTRACTION FROM TRANSCRIPT)** ",
+        "height": 93,
+        "width": 1315,
+        "color": 2
+      },
+      "id": "766c76aa-9164-4def-aeb3-2b6d43ac6563",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE video_transcripts\nSET brand_mention_entities = data.output\nFROM (VALUES\n    ('{{ $json.yt_video_id }}', to_jsonb('{{ $json.output }}'::json))\n) AS data(yt_video_id, output)\nWHERE video_transcripts.yt_video_id = data.yt_video_id;\n",
+        "options": {}
+      },
+      "id": "60605548-d3bd-4813-ba21-904f646bf2bf",
+      "name": "Insert To Brand_Mention_Entity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        940,
+        140
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "xuASL97JcX6mWTJe",
+          "name": "Youtube DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolSerpApi",
+      "typeVersion": 1,
+      "position": [
+        260,
+        340
+      ],
+      "id": "b7be74d4-852a-494c-b775-05179f59d83c",
+      "name": "SerpAPI",
+      "credentials": {
+        "serpApi": {
+          "id": "evRm8uhqc3Zs2WeT",
+          "name": "SerpAPI account 2"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:latest",
+        "options": {
+          "numCtx": 64000
+        }
+      },
+      "id": "232df6cd-8371-4cc3-ae93-635c833db7d4",
+      "name": "OLLAMA LLAMA 3.1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        340
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=- Youtube video's Title: {{ $json.video_title }}\n- Youtube video's Description: {{ $json.video_description }}\n- Youtube video's Tags: {{ $json.video_tags }}\n- Youtube video's Transcript: {{ $json.transcript_text }}",
+        "options": {
+          "systemMessage": "understand the context of youtube text: \nYoutube video's Title, Youtube video's Description, Youtube video's Tags, Youtube video's Transcript and then Extract strictly \"Brand Name\" and \"Company Name\" and \"Organization Name\" only from given youtube text. \n\n1. Brand Name and product name means consumer-facing product or service label that individuals recognize, use, or purchase. These are typically marketed to the public.  \n2. Company Name means a legally registered business responsible for creating, managing, or owning products, services, or brands.  \n3. Organization Name means non-commercial entities, institutions, or groups that serve public or social purposes.  \n\nOutput should be strictly in the following JSON format only, strictly ensure that each entry should have a short description in parentheses only and strictly ensure that no invalid input syntax for type JSON should generate:\n\nOutput Format (strictly follow this):\n{\n  \"Brand_Name_and_Product_name\": [\n    {\n      \"name\": \"\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"\",\n      \"description\": \"\"\n    }\n    ...\n  ],\n  \"Company_Name\": [\n    {\n      \"name\": \"\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"\",\n      \"description\": \"\"\n    }\n    ...\n  ],\n  \"Organization_Name\": [\n    {\n      \"name\": \"\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"\",\n      \"description\": \"\"\n    },\n    {\n      \"name\": \"\",\n      \"description\": \"\"\n    }\n    ...\n  ]\n}\n\n\ndon't give explanation, provide only JSON output.\nDo not leave the description field empty. It is mandatory."
+        }
+      },
+      "id": "9f84ef78-f4dc-41e3-a3bb-5ed80f937a5f",
+      "name": "BRAND EXTRACTION",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        20,
+        140
+      ],
+      "notesInFlow": false
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Video_id & yt_video_id & output [Merged]": {
+      "main": [
+        [
+          {
+            "node": "Cleaned_the_output ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "BRAND EXTRACTION",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cleaned_the_output ": {
+      "main": [
+        [
+          {
+            "node": "Insert To Brand_Mention_Entity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI": {
+      "ai_tool": [
+        []
+      ]
+    },
+    "OLLAMA LLAMA 3.1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "BRAND EXTRACTION",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BRAND EXTRACTION": {
+      "main": [
+        [
+          {
+            "node": "Video_id & yt_video_id & output [Merged]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "78d40f04-7d01-436e-b7d0-148ae10e50c4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
+  },
+  "id": "w0fNVojBsZjRTVkn",
+  "tags": []
+}
