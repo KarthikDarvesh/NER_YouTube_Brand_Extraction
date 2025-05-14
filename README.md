@@ -11,7 +11,7 @@ A fully automated pipeline that extracts brand mentions from YouTube video trans
 
 ### 🟢 Primary Workflow
 
-<img width="1284" alt="image" src="https://github.com/user-attachments/assets/2ff93347-b3a2-4fe7-b7e7-7d4fcf086c05" />
+![image](https://github.com/user-attachments/assets/3612f7a6-e978-4255-91c6-7ecee045eb89)
 
 1. **Trigger (Manual):**  
   Starts the workflow when the user manually clicks “Test Workflow.”
@@ -41,7 +41,7 @@ A fully automated pipeline that extracts brand mentions from YouTube video trans
 
 ### 🟠 Secondary Workflow (Sub-Workflow)
 
-![Screenshot 2025-05-02 112840](https://github.com/user-attachments/assets/c233369c-9e4c-47ee-8e0e-ee30c1c30608)
+![image](https://github.com/user-attachments/assets/a35aaa5f-c15a-4f4c-98ea-5f64a88fa9b8)
 
 1. **Execute Workflow Trigger Node:**  
   Entry point that is triggered by the parent (primary) workflow for each item.
